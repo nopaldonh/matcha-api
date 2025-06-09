@@ -1,15 +1,20 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { PrismaModule } from './prisma/prisma.module';
+import {
+  PrismaModule,
+  providePrismaClientExceptionFilter,
+} from 'nestjs-prisma';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    PrismaModule,
+    PrismaModule.forRoot({
+      isGlobal: true,
+    }),
   ],
   controllers: [],
-  providers: [],
+  providers: [providePrismaClientExceptionFilter()],
 })
 export class AppModule {}
