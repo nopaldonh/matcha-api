@@ -6,6 +6,7 @@ import {
   providePrismaClientExceptionFilter,
 } from 'nestjs-prisma';
 import { ZodValidationPipe } from 'nestjs-zod';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ZodValidationPipe } from 'nestjs-zod';
     PrismaModule.forRoot({
       isGlobal: true,
     }),
+    AuthModule,
   ],
   controllers: [],
   providers: [
