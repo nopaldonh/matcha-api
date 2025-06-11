@@ -10,6 +10,7 @@ import {
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
+import { JwtRefreshAuthGuard } from './guards/jwt-refresh-auth.guard';
 import { User } from '@prisma/client';
 
 @Controller('auth')
@@ -31,10 +32,13 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @HttpCode(HttpStatus.OK)
   login(@Request() request: { user: User }) {
-    const access_token = this.authService.login(request.user.id);
-    return {
-      id: request.user.id,
-      access_token,
-    };
+    return this.authService.login(request.user.id);
+  }
+
+  @Post('refresh')
+  @UseGuards(JwtRefreshAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  refresh(@Request() request: { user: User }) {
+    return this.authService.refreshToken(request.user.id);
   }
 }

@@ -1,15 +1,18 @@
 import {
   BadRequestException,
   HttpStatus,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'nestjs-prisma';
 import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
 import { UserService } from '../user/user.service';
 import { AuthJwtPayload } from './types/auth-jwtPayload';
+import jwtRefreshConfig from './config/jwt-refresh.config';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +20,8 @@ export class AuthService {
     private prismaService: PrismaService,
     private userService: UserService,
     private jwtService: JwtService,
+    @Inject(jwtRefreshConfig.KEY)
+    private jwtRefreshConfiguration: ConfigType<typeof jwtRefreshConfig>,
   ) {}
 
   async register(data: RegisterDto) {
@@ -105,6 +110,24 @@ export class AuthService {
 
   login(userId: string) {
     const payload: AuthJwtPayload = { sub: userId };
-    return this.jwtService.sign(payload);
+    const access_token = this.jwtService.sign(payload);
+    const refresh_token = this.jwtService.sign(
+      payload,
+      this.jwtRefreshConfiguration,
+    );
+    return {
+      id: userId,
+      access_token,
+      refresh_token,
+    };
+  }
+
+  refreshToken(userId: string) {
+    const payload: AuthJwtPayload = { sub: userId };
+    const access_token = this.jwtService.sign(payload);
+    return {
+      id: userId,
+      access_token,
+    };
   }
 }
