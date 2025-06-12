@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'nestjs-prisma';
 import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
+import * as argon2 from 'argon2';
 import { UserService } from '../user/user.service';
 import { AuthJwtPayload } from './types/auth-jwtPayload';
 import jwtRefreshConfig from './config/jwt-refresh.config';
@@ -108,13 +109,9 @@ export class AuthService {
     return { id: user.id };
   }
 
-  login(userId: string) {
-    const payload: AuthJwtPayload = { sub: userId };
-    const access_token = this.jwtService.sign(payload);
-    const refresh_token = this.jwtService.sign(
-      payload,
-      this.jwtRefreshConfiguration,
-    );
+  async login(userId: string) {
+    const { access_token, refresh_token } = await this.generateTokens(userId);
+    await this.updateRefreshToken(userId, refresh_token);
     return {
       id: userId,
       access_token,
@@ -122,12 +119,61 @@ export class AuthService {
     };
   }
 
-  refreshToken(userId: string) {
+  async generateTokens(userId: string) {
     const payload: AuthJwtPayload = { sub: userId };
-    const access_token = this.jwtService.sign(payload);
+    const [access_token, refresh_token] = await Promise.all([
+      this.jwtService.signAsync(payload),
+      this.jwtService.signAsync(payload, this.jwtRefreshConfiguration),
+    ]);
+    return { access_token, refresh_token };
+  }
+
+  async refreshToken(userId: string) {
+    const { access_token, refresh_token } = await this.generateTokens(userId);
+    await this.updateRefreshToken(userId, refresh_token);
     return {
       id: userId,
       access_token,
+      refresh_token,
     };
+  }
+
+  async updateRefreshToken(userId: string, refreshToken: string | null) {
+    if (refreshToken) {
+      refreshToken = await argon2.hash(refreshToken);
+    }
+    await this.prismaService.user.update({
+      where: { id: userId },
+      data: { refresh_token: refreshToken },
+    });
+  }
+
+  async validateRefreshToken(userId: string, refreshToken: string) {
+    const user = await this.userService.findOne({ id: userId });
+    if (!user || !user.refresh_token) {
+      throw new UnauthorizedException({
+        statusCode: HttpStatus.UNAUTHORIZED,
+        message: 'Access denied',
+        error: 'Unauthorized',
+      });
+    }
+
+    const isRefreshTokenMatch = await argon2.verify(
+      user.refresh_token,
+      refreshToken,
+    );
+    if (!isRefreshTokenMatch) {
+      throw new UnauthorizedException({
+        statusCode: HttpStatus.UNAUTHORIZED,
+        message: 'Invalid refresh token',
+        error: 'Unauthorized',
+      });
+    }
+
+    return { id: userId };
+  }
+
+  async logout(userId: string) {
+    await this.updateRefreshToken(userId, null);
   }
 }

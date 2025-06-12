@@ -27,6 +27,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
     "@prisma/client": "^6.9.0",
+    "argon2": "^0.43.0",
     "bcrypt": "^6.0.0",
     "nestjs-prisma": "^0.25.0",
     "nestjs-zod": "^4.3.1",
