@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   HttpStatus,
   Inject,
   Injectable,
@@ -14,6 +15,7 @@ import * as argon2 from 'argon2';
 import { UserService } from '../user/user.service';
 import { AuthJwtPayload } from './types/auth-jwtPayload';
 import jwtRefreshConfig from './config/jwt-refresh.config';
+import jwtPasswordResetConfig from './config/jwt-password-reset.config';
 
 @Injectable()
 export class AuthService {
@@ -23,6 +25,10 @@ export class AuthService {
     private jwtService: JwtService,
     @Inject(jwtRefreshConfig.KEY)
     private jwtRefreshConfiguration: ConfigType<typeof jwtRefreshConfig>,
+    @Inject(jwtPasswordResetConfig.KEY)
+    private jwtPasswordResetConfiguration: ConfigType<
+      typeof jwtPasswordResetConfig
+    >,
   ) {}
 
   async register(data: RegisterDto) {
@@ -175,5 +181,72 @@ export class AuthService {
 
   async logout(userId: string) {
     await this.updateRefreshToken(userId, null);
+  }
+
+  async forgotPassword(email: string) {
+    const totalUser = await this.prismaService.user.count({ where: { email } });
+    if (totalUser != 0) {
+      await this.prismaService.passwordResetToken.deleteMany({
+        where: { email },
+      });
+
+      const payload: AuthJwtPayload = { sub: email };
+      const token = this.jwtService.sign(
+        payload,
+        this.jwtPasswordResetConfiguration,
+      );
+
+      const hashedToken = await argon2.hash(token);
+      await this.prismaService.passwordResetToken.create({
+        data: {
+          email,
+          token: hashedToken,
+        },
+      });
+
+      // TODO: send email with reset link
+      console.log('token: ', token);
+    }
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'A reset link will be sent if the account exists.',
+    };
+  }
+
+  async resetPassword(email: string, password: string) {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await this.prismaService.user.update({
+      where: { email },
+      data: { password: hashedPassword },
+    });
+    await this.prismaService.passwordResetToken.delete({ where: { email } });
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Password has been reset',
+    };
+  }
+
+  async validatePasswordResetToken(email: string, token: string) {
+    const record = await this.prismaService.passwordResetToken.findUnique({
+      where: { email },
+    });
+
+    if (!record) {
+      throw new ForbiddenException({
+        statusCode: HttpStatus.FORBIDDEN,
+        message: 'Reset token not found or expired',
+      });
+    }
+
+    const isTokenMatch = await argon2.verify(record.token, token);
+    if (!isTokenMatch) {
+      throw new ForbiddenException({
+        statusCode: HttpStatus.FORBIDDEN,
+        message: 'Invalid reset token',
+      });
+    }
+
+    return { email };
   }
 }
