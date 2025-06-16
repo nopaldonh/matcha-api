@@ -6,6 +6,7 @@ import {
   providePrismaClientExceptionFilter,
 } from 'nestjs-prisma';
 import { ZodValidationPipe } from 'nestjs-zod';
+import { MailModule } from './mail/mail.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 
@@ -17,6 +18,7 @@ import { UserModule } from './modules/user/user.module';
     PrismaModule.forRoot({
       isGlobal: true,
     }),
+    MailModule,
     AuthModule,
     UserModule,
   ],

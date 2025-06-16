@@ -12,8 +12,11 @@ import { PrismaService } from 'nestjs-prisma';
 import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
 import * as argon2 from 'argon2';
+import * as ms from 'ms';
+import { MailService } from 'src/mail/mail.service';
 import { UserService } from '../user/user.service';
 import { AuthJwtPayload } from './types/auth-jwtPayload';
+import appConfig from 'src/config/app.config';
 import jwtRefreshConfig from './config/jwt-refresh.config';
 import jwtPasswordResetConfig from './config/jwt-password-reset.config';
 
@@ -21,8 +24,11 @@ import jwtPasswordResetConfig from './config/jwt-password-reset.config';
 export class AuthService {
   constructor(
     private prismaService: PrismaService,
-    private userService: UserService,
     private jwtService: JwtService,
+    private mailService: MailService,
+    private userService: UserService,
+    @Inject(appConfig.KEY)
+    private appConfiguration: ConfigType<typeof appConfig>,
     @Inject(jwtRefreshConfig.KEY)
     private jwtRefreshConfiguration: ConfigType<typeof jwtRefreshConfig>,
     @Inject(jwtPasswordResetConfig.KEY)
@@ -204,8 +210,17 @@ export class AuthService {
         },
       });
 
-      // TODO: send email with reset link
-      console.log('token: ', token);
+      const resetBaseUrl = this.appConfiguration.frontend.passwordResetUrl;
+      const tokenExpiresIn = this.jwtPasswordResetConfiguration.expiresIn;
+      const resetLink = `${resetBaseUrl}/${token}`;
+      const resetLinkExpiresIn = ms(ms(tokenExpiresIn as ms.StringValue), {
+        long: true,
+      });
+      await this.mailService.sendPasswordResetEmail(
+        email,
+        resetLink,
+        resetLinkExpiresIn,
+      );
     }
 
     return {
