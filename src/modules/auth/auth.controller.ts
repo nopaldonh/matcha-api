@@ -15,7 +15,9 @@ import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshAuthGuard } from './guards/jwt-refresh-auth.guard';
 import { JwtPasswordResetAuthGuard } from './guards/jwt-password-reset-auth.guard';
+import { JwtVerifyEmailAuthGuard } from './guards/jwt-verify-email-auth.guard';
 import { User } from '@prisma/client';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -70,5 +72,19 @@ export class AuthController {
       request.user.email,
       body.password,
     );
+  }
+
+  @Post('email/verification-notification')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  emailVerificationNotification(@CurrentUser() user: User) {
+    return this.authService.emailVerificationNotification(user.id);
+  }
+
+  @Post('verify-email')
+  @UseGuards(JwtVerifyEmailAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  verifyEmail(@CurrentUser() user: User) {
+    return this.authService.verifyEmail(user.email);
   }
 }

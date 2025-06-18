@@ -19,6 +19,7 @@ import { AuthJwtPayload } from './types/auth-jwtPayload';
 import appConfig from 'src/config/app.config';
 import jwtRefreshConfig from './config/jwt-refresh.config';
 import jwtPasswordResetConfig from './config/jwt-password-reset.config';
+import jwtVerifyEmailConfig from './config/jwt-verify-email.config';
 
 @Injectable()
 export class AuthService {
@@ -34,6 +35,10 @@ export class AuthService {
     @Inject(jwtPasswordResetConfig.KEY)
     private jwtPasswordResetConfiguration: ConfigType<
       typeof jwtPasswordResetConfig
+    >,
+    @Inject(jwtVerifyEmailConfig.KEY)
+    private jwtVerifyEmailConfiguration: ConfigType<
+      typeof jwtVerifyEmailConfig
     >,
   ) {}
 
@@ -259,6 +264,77 @@ export class AuthService {
       throw new ForbiddenException({
         statusCode: HttpStatus.FORBIDDEN,
         message: 'Invalid reset token',
+      });
+    }
+
+    return { email };
+  }
+
+  async emailVerificationNotification(userId: string) {
+    const user = await this.prismaService.user.findUnique({
+      where: { id: userId },
+    });
+    if (user?.email_verified_at) {
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'User email is already verified',
+      };
+    }
+
+    const payload: AuthJwtPayload = { sub: user!.email };
+    const token = this.jwtService.sign(
+      payload,
+      this.jwtPasswordResetConfiguration,
+    );
+
+    const verifyBaseUrl = this.appConfiguration.frontend.verifyEmailUrl;
+    const tokenExpiresIn = this.jwtVerifyEmailConfiguration.expiresIn;
+    const verifyLink = `${verifyBaseUrl}/${token}`;
+    const verifyLinkExpiresIn = ms(ms(tokenExpiresIn as ms.StringValue), {
+      long: true,
+    });
+    await this.mailService.sendEmailVerificationNotification(
+      user!.email,
+      verifyLink,
+      verifyLinkExpiresIn,
+    );
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Verification email sent',
+    };
+  }
+
+  async verifyEmail(email: string) {
+    const user = await this.prismaService.user.findUnique({
+      where: { email },
+    });
+    if (user?.email_verified_at) {
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'User email is already verified',
+      };
+    }
+
+    await this.prismaService.user.update({
+      where: { email },
+      data: { email_verified_at: new Date() },
+    });
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Email successfully verified',
+    };
+  }
+
+  async validateVerifyEmailToken(email: string) {
+    const user = await this.prismaService.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new ForbiddenException({
+        statusCode: HttpStatus.FORBIDDEN,
+        message: 'User not found or token expired',
       });
     }
 

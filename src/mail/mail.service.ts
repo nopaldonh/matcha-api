@@ -35,4 +35,21 @@ export class MailService {
       `,
     });
   }
+
+  async sendEmailVerificationNotification(
+    to: string,
+    verify: string,
+    verifyExpiresIn: string,
+  ) {
+    await this.transporter.sendMail({
+      to,
+      subject: 'Verify Email Address',
+      html: /* html */ `
+        <h3>Hello!</h3>
+        <p>Please click the button below to verify your email address:</p>
+        <a href="${verify}">Verify Email Address</a>
+        <p>This link will expire in ${verifyExpiresIn}.</p>
+      `,
+    });
+  }
 }
