@@ -1,7 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
-  HttpStatus,
   Inject,
   Injectable,
   UnauthorizedException,
@@ -43,52 +41,30 @@ export class AuthService {
   ) {}
 
   async register(data: RegisterDto) {
-    const errorsUniqueConstraint: Record<string, string>[] = [];
+    const errors: Record<string, string[]> = {};
 
-    const totalUserWithSameUsername = await this.prismaService.user.count({
-      where: {
-        username: data.username,
-      },
-    });
+    const [usernameCount, emailCount, phoneCount] = await Promise.all([
+      this.prismaService.user.count({ where: { username: data.username } }),
+      this.prismaService.user.count({ where: { email: data.email } }),
+      this.prismaService.user.count({ where: { phone: data.phone } }),
+    ]);
 
-    if (totalUserWithSameUsername != 0) {
-      errorsUniqueConstraint.push({
-        field: 'username',
-        message: 'Username already exists',
-      });
+    if (usernameCount > 0) {
+      errors['username'] = ['Username already exists'];
     }
 
-    const totalUserWithSameEmail = await this.prismaService.user.count({
-      where: {
-        email: data.email,
-      },
-    });
-
-    if (totalUserWithSameEmail != 0) {
-      errorsUniqueConstraint.push({
-        field: 'email',
-        message: 'Email already exists',
-      });
+    if (emailCount > 0) {
+      errors['email'] = ['Email already exists'];
     }
 
-    const totalUserWithSamePhone = await this.prismaService.user.count({
-      where: {
-        phone: data.phone,
-      },
-    });
-
-    if (totalUserWithSamePhone != 0) {
-      errorsUniqueConstraint.push({
-        field: 'phone',
-        message: 'Phone already exists',
-      });
+    if (phoneCount > 0) {
+      errors['phone'] = ['Phone already exists'];
     }
 
-    if (errorsUniqueConstraint.length != 0) {
+    if (Object.keys(errors).length > 0) {
       throw new BadRequestException({
-        statusCode: HttpStatus.BAD_REQUEST,
         message: 'Validation failed',
-        errors: errorsUniqueConstraint,
+        errors,
       });
     }
 
@@ -108,50 +84,43 @@ export class AuthService {
   async validateUser(email: string, password: string) {
     const user = await this.userService.findByEmail(email);
     if (!user) {
-      throw new UnauthorizedException({
-        statusCode: HttpStatus.UNAUTHORIZED,
-        message: 'User not found',
-      });
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const isPasswordMatch = await bcrypt.compare(password, user.password);
     if (!isPasswordMatch) {
-      throw new UnauthorizedException({
-        statusCode: HttpStatus.UNAUTHORIZED,
-        message: 'Invalid credentials',
-        error: 'Unauthorized',
-      });
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     return { id: user.id };
   }
 
   async login(userId: string) {
-    const { access_token, refresh_token } = await this.generateTokens(userId);
-    await this.updateRefreshToken(userId, refresh_token);
+    const { accessToken, refreshToken } = await this.generateTokens(userId);
+    await this.updateRefreshToken(userId, refreshToken);
     return {
       id: userId,
-      access_token,
-      refresh_token,
+      accessToken,
+      refreshToken,
     };
   }
 
   async generateTokens(userId: string) {
     const payload: AuthJwtPayload = { sub: userId };
-    const [access_token, refresh_token] = await Promise.all([
+    const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload),
       this.jwtService.signAsync(payload, this.jwtRefreshConfiguration),
     ]);
-    return { access_token, refresh_token };
+    return { accessToken, refreshToken };
   }
 
   async refreshToken(userId: string) {
-    const { access_token, refresh_token } = await this.generateTokens(userId);
-    await this.updateRefreshToken(userId, refresh_token);
+    const { accessToken, refreshToken } = await this.generateTokens(userId);
+    await this.updateRefreshToken(userId, refreshToken);
     return {
       id: userId,
-      access_token,
-      refresh_token,
+      accessToken,
+      refreshToken,
     };
   }
 
@@ -168,11 +137,7 @@ export class AuthService {
   async validateRefreshToken(userId: string, refreshToken: string) {
     const user = await this.userService.findOne({ id: userId });
     if (!user || !user.refresh_token) {
-      throw new UnauthorizedException({
-        statusCode: HttpStatus.UNAUTHORIZED,
-        message: 'Access denied',
-        error: 'Unauthorized',
-      });
+      throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
     const isRefreshTokenMatch = await argon2.verify(
@@ -180,11 +145,7 @@ export class AuthService {
       refreshToken,
     );
     if (!isRefreshTokenMatch) {
-      throw new UnauthorizedException({
-        statusCode: HttpStatus.UNAUTHORIZED,
-        message: 'Invalid refresh token',
-        error: 'Unauthorized',
-      });
+      throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
     return { id: userId };
@@ -195,43 +156,38 @@ export class AuthService {
   }
 
   async forgotPassword(email: string) {
-    const totalUser = await this.prismaService.user.count({ where: { email } });
-    if (totalUser != 0) {
-      await this.prismaService.passwordResetToken.deleteMany({
-        where: { email },
-      });
+    const userCount = await this.prismaService.user.count({ where: { email } });
+    if (userCount == 0) return;
 
-      const payload: AuthJwtPayload = { sub: email };
-      const token = this.jwtService.sign(
-        payload,
-        this.jwtPasswordResetConfiguration,
-      );
+    await this.prismaService.passwordResetToken.deleteMany({
+      where: { email },
+    });
 
-      const hashedToken = await argon2.hash(token);
-      await this.prismaService.passwordResetToken.create({
-        data: {
-          email,
-          token: hashedToken,
-        },
-      });
+    const payload: AuthJwtPayload = { sub: email };
+    const token = this.jwtService.sign(
+      payload,
+      this.jwtPasswordResetConfiguration,
+    );
 
-      const resetBaseUrl = this.appConfiguration.frontend.passwordResetUrl;
-      const tokenExpiresIn = this.jwtPasswordResetConfiguration.expiresIn;
-      const resetLink = `${resetBaseUrl}/${token}`;
-      const resetLinkExpiresIn = ms(ms(tokenExpiresIn as ms.StringValue), {
-        long: true,
-      });
-      await this.mailService.sendPasswordResetEmail(
+    const hashedToken = await argon2.hash(token);
+    await this.prismaService.passwordResetToken.create({
+      data: {
         email,
-        resetLink,
-        resetLinkExpiresIn,
-      );
-    }
+        token: hashedToken,
+      },
+    });
 
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'A reset link will be sent if the account exists.',
-    };
+    const resetBaseUrl = this.appConfiguration.frontend.passwordResetUrl;
+    const tokenExpiresIn = this.jwtPasswordResetConfiguration.expiresIn;
+    const resetLink = `${resetBaseUrl}/${token}`;
+    const resetLinkExpiresIn = ms(ms(tokenExpiresIn as ms.StringValue), {
+      long: true,
+    });
+    await this.mailService.sendPasswordResetEmail(
+      email,
+      resetLink,
+      resetLinkExpiresIn,
+    );
   }
 
   async resetPassword(email: string, password: string) {
@@ -241,30 +197,19 @@ export class AuthService {
       data: { password: hashedPassword },
     });
     await this.prismaService.passwordResetToken.delete({ where: { email } });
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'Password has been reset',
-    };
   }
 
   async validatePasswordResetToken(email: string, token: string) {
     const record = await this.prismaService.passwordResetToken.findUnique({
       where: { email },
     });
-
     if (!record) {
-      throw new ForbiddenException({
-        statusCode: HttpStatus.FORBIDDEN,
-        message: 'Reset token not found or expired',
-      });
+      throw new BadRequestException('Reset token is invalid or has expired');
     }
 
     const isTokenMatch = await argon2.verify(record.token, token);
     if (!isTokenMatch) {
-      throw new ForbiddenException({
-        statusCode: HttpStatus.FORBIDDEN,
-        message: 'Invalid reset token',
-      });
+      throw new BadRequestException('Reset token is invalid or has expired');
     }
 
     return { email };
@@ -274,14 +219,14 @@ export class AuthService {
     const user = await this.prismaService.user.findUnique({
       where: { id: userId },
     });
-    if (user?.email_verified_at) {
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'User email is already verified',
-      };
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+    if (user.email_verified_at) {
+      throw new BadRequestException('Email is already verified');
     }
 
-    const payload: AuthJwtPayload = { sub: user!.email };
+    const payload: AuthJwtPayload = { sub: user.email };
     const token = this.jwtService.sign(
       payload,
       this.jwtPasswordResetConfiguration,
@@ -294,48 +239,30 @@ export class AuthService {
       long: true,
     });
     await this.mailService.sendEmailVerificationNotification(
-      user!.email,
+      user.email,
       verifyLink,
       verifyLinkExpiresIn,
     );
-
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'Verification email sent',
-    };
   }
 
   async verifyEmail(email: string) {
-    const user = await this.prismaService.user.findUnique({
-      where: { email },
-    });
-    if (user?.email_verified_at) {
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'User email is already verified',
-      };
-    }
-
     await this.prismaService.user.update({
       where: { email },
       data: { email_verified_at: new Date() },
     });
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'Email successfully verified',
-    };
   }
 
   async validateVerifyEmailToken(email: string) {
     const user = await this.prismaService.user.findUnique({
       where: { email },
     });
-
     if (!user) {
-      throw new ForbiddenException({
-        statusCode: HttpStatus.FORBIDDEN,
-        message: 'User not found or token expired',
-      });
+      throw new BadRequestException(
+        'Verification token is invalid or has expired',
+      );
+    }
+    if (user.email_verified_at) {
+      throw new BadRequestException('Email is already verified');
     }
 
     return { email };

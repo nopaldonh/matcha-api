@@ -4,7 +4,6 @@ import {
   HttpCode,
   HttpStatus,
   Post,
-  Request,
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -28,8 +27,7 @@ export class AuthController {
   async register(@Body() registerRequest: RegisterDto) {
     const result = await this.authService.register(registerRequest);
     return {
-      statusCode: HttpStatus.OK,
-      message: 'User registered successfully',
+      message: 'Registration successful',
       data: result,
     };
   }
@@ -37,54 +35,74 @@ export class AuthController {
   @Post('login')
   @UseGuards(LocalAuthGuard)
   @HttpCode(HttpStatus.OK)
-  login(@Request() request: { user: User }) {
-    return this.authService.login(request.user.id);
+  async login(@CurrentUser() user: User) {
+    const result = await this.authService.login(user.id);
+    return {
+      message: 'Login successful',
+      data: result,
+    };
   }
 
   @Post('refresh')
   @UseGuards(JwtRefreshAuthGuard)
   @HttpCode(HttpStatus.OK)
-  refresh(@Request() request: { user: User }) {
-    return this.authService.refreshToken(request.user.id);
+  async refresh(@CurrentUser() user: User) {
+    const result = await this.authService.refreshToken(user.id);
+    return {
+      message: 'Token refreshed successfully',
+      data: result,
+    };
   }
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  logout(@Request() request: { user: User }) {
-    return this.authService.logout(request.user.id);
+  async logout(@CurrentUser() user: User) {
+    await this.authService.logout(user.id);
+    return {
+      message: 'Logout successful',
+    };
   }
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() body: ForgotPasswordDto) {
-    return await this.authService.forgotPassword(body.email);
+    await this.authService.forgotPassword(body.email);
+    return {
+      message: 'A reset link will be sent if the account exists',
+    };
   }
 
   @Post('reset-password')
   @UseGuards(JwtPasswordResetAuthGuard)
   @HttpCode(HttpStatus.OK)
   async resetPassword(
-    @Request() request: { user: User },
+    @CurrentUser() user: User,
     @Body() body: ResetPasswordDto,
   ) {
-    return await this.authService.resetPassword(
-      request.user.email,
-      body.password,
-    );
+    await this.authService.resetPassword(user.email, body.password);
+    return {
+      message: 'Password has been reset successfully',
+    };
   }
 
   @Post('email/verification-notification')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  emailVerificationNotification(@CurrentUser() user: User) {
-    return this.authService.emailVerificationNotification(user.id);
+  async emailVerificationNotification(@CurrentUser() user: User) {
+    await this.authService.emailVerificationNotification(user.id);
+    return {
+      message: 'Verification email has been sent successfully',
+    };
   }
 
   @Post('verify-email')
   @UseGuards(JwtVerifyEmailAuthGuard)
   @HttpCode(HttpStatus.OK)
-  verifyEmail(@CurrentUser() user: User) {
-    return this.authService.verifyEmail(user.email);
+  async verifyEmail(@CurrentUser() user: User) {
+    await this.authService.verifyEmail(user.email);
+    return {
+      message: 'Email has been verified successfully',
+    };
   }
 }
