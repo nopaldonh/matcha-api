@@ -5,12 +5,12 @@ import {
   PrismaModule,
   providePrismaClientExceptionFilter,
 } from 'nestjs-prisma';
-import { ZodValidationPipe } from 'nestjs-zod';
 import { MailModule } from './mail/mail.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { ResponseInterceptor } from './interceptors/response.interceptor';
+import { ZodValidationPipe } from './pipes/zod-validation.pipe';
 
 @Module({
   imports: [
