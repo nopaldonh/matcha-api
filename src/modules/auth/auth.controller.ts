@@ -8,8 +8,11 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ZodGuard } from 'src/guards/zod.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshAuthGuard } from './guards/jwt-refresh-auth.guard';
@@ -33,7 +36,7 @@ export class AuthController {
   }
 
   @Post('login')
-  @UseGuards(LocalAuthGuard)
+  @UseGuards(new ZodGuard('body', LoginDto), LocalAuthGuard)
   @HttpCode(HttpStatus.OK)
   async login(@CurrentUser() user: User) {
     const result = await this.authService.login(user.id);
@@ -74,7 +77,7 @@ export class AuthController {
   }
 
   @Post('reset-password')
-  @UseGuards(JwtPasswordResetAuthGuard)
+  @UseGuards(new ZodGuard('body', ResetPasswordDto), JwtPasswordResetAuthGuard)
   @HttpCode(HttpStatus.OK)
   async resetPassword(
     @CurrentUser() user: User,
@@ -97,7 +100,7 @@ export class AuthController {
   }
 
   @Post('verify-email')
-  @UseGuards(JwtVerifyEmailAuthGuard)
+  @UseGuards(new ZodGuard('body', VerifyEmailDto), JwtVerifyEmailAuthGuard)
   @HttpCode(HttpStatus.OK)
   async verifyEmail(@CurrentUser() user: User) {
     await this.authService.verifyEmail(user.email);
