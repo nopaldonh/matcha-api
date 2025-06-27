@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { HobbyService } from './hobby.service';
 import { CreateHobbyDto } from './dto/create-hobby.dto';
+import { GetHobbyDto } from './dto/get-hobby.dto';
 
 @Controller('hobbies')
 export class HobbyController {
@@ -20,6 +21,15 @@ export class HobbyController {
     const result = await this.hobbyService.findAll();
     return {
       message: 'Hobbies retrieved successfully',
+      data: result,
+    };
+  }
+
+  @Get(':id')
+  async findOne(@Param() { id }: GetHobbyDto) {
+    const result = await this.hobbyService.findOne({ id });
+    return {
+      message: 'Hobby retrieved successfully',
       data: result,
     };
   }

@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { CreateHobbyDto } from './dto/create-hobby.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
+import { Prisma } from '@prisma/client';
 import { handlePrismaUniqueError } from 'src/utils';
+import { CreateHobbyDto } from './dto/create-hobby.dto';
 
 @Injectable()
 export class HobbyService {
@@ -15,5 +16,13 @@ export class HobbyService {
 
   async findAll() {
     return await this.prismaService.hobby.findMany();
+  }
+
+  async findOne(where: Prisma.HobbyWhereUniqueInput) {
+    const hobby = await this.prismaService.hobby.findUnique({ where });
+    if (!hobby) {
+      throw new NotFoundException('Hobby not found');
+    }
+    return hobby;
   }
 }
