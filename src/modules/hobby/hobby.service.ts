@@ -12,4 +12,8 @@ export class HobbyService {
       handlePrismaUniqueError(error, 'name');
     });
   }
+
+  async findAll() {
+    return await this.prismaService.hobby.findMany();
+  }
 }
