@@ -8,6 +8,7 @@ import {
 import { MailModule } from './mail/mail.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
+import { HobbyModule } from './modules/hobby/hobby.module';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { ResponseInterceptor } from './interceptors/response.interceptor';
 import { ZodValidationPipe } from './pipes/zod-validation.pipe';
@@ -23,6 +24,7 @@ import { ZodValidationPipe } from './pipes/zod-validation.pipe';
     MailModule,
     AuthModule,
     UserModule,
+    HobbyModule,
   ],
   controllers: [],
   providers: [
