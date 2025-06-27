@@ -37,4 +37,15 @@ export class HobbyService {
         handlePrismaNotFoundError(error);
       });
   }
+
+  async softDelete(id: number) {
+    return this.prismaService.hobby
+      .update({
+        where: { id },
+        data: { deleted_at: new Date() },
+      })
+      .catch((error) => {
+        handlePrismaNotFoundError(error);
+      });
+  }
 }

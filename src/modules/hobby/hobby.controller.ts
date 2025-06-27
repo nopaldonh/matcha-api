@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { HobbyService } from './hobby.service';
 import { CreateHobbyDto } from './dto/create-hobby.dto';
 import { GetHobbyDto } from './dto/get-hobby.dto';
@@ -41,6 +49,14 @@ export class HobbyController {
     return {
       message: 'Hobby updated successfully',
       data: result,
+    };
+  }
+
+  @Delete(':id')
+  async softDelete(@Param() { id }: GetHobbyDto) {
+    await this.hobbyService.softDelete(id);
+    return {
+      message: 'Hobby deleted successfully',
     };
   }
 }
