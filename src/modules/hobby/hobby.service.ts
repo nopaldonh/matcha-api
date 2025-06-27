@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
 import { Prisma } from '@prisma/client';
-import { handlePrismaUniqueError } from 'src/utils';
+import { handlePrismaNotFoundError, handlePrismaUniqueError } from 'src/utils';
 import { CreateHobbyDto } from './dto/create-hobby.dto';
+import { UpdateHobbyDto } from './dto/update-hobby.dto';
 
 @Injectable()
 export class HobbyService {
@@ -24,5 +25,16 @@ export class HobbyService {
       throw new NotFoundException('Hobby not found');
     }
     return hobby;
+  }
+
+  async update(id: number, data: UpdateHobbyDto) {
+    return await this.prismaService.hobby
+      .update({
+        where: { id },
+        data,
+      })
+      .catch((error) => {
+        handlePrismaNotFoundError(error);
+      });
   }
 }

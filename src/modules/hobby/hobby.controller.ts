@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { HobbyService } from './hobby.service';
 import { CreateHobbyDto } from './dto/create-hobby.dto';
 import { GetHobbyDto } from './dto/get-hobby.dto';
+import { UpdateHobbyDto } from './dto/update-hobby.dto';
 
 @Controller('hobbies')
 export class HobbyController {
@@ -30,6 +31,15 @@ export class HobbyController {
     const result = await this.hobbyService.findOne({ id });
     return {
       message: 'Hobby retrieved successfully',
+      data: result,
+    };
+  }
+
+  @Patch(':id')
+  async update(@Param() { id }: GetHobbyDto, @Body() body: UpdateHobbyDto) {
+    const result = await this.hobbyService.update(id, body);
+    return {
+      message: 'Hobby updated successfully',
       data: result,
     };
   }
