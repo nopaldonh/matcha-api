@@ -21,3 +21,18 @@ export function handlePrismaUniqueError(
     });
   }
 }
+
+export function handlePrismaNotFoundError(
+  error: unknown,
+  modelName?: string,
+  errorMessage?: string,
+) {
+  if (
+    error instanceof PrismaClientKnownRequestError &&
+    error.code === 'P2025'
+  ) {
+    modelName = modelName ?? (error.meta?.modelName as string);
+    errorMessage = errorMessage ?? `${modelName} not found`;
+    throw new BadRequestException(errorMessage);
+  }
+}
