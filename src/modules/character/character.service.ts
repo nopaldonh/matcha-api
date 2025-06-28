@@ -49,4 +49,18 @@ export class CharacterService {
         handlePrismaNotFoundError(error);
       });
   }
+
+  async softDelete(id: number) {
+    return this.prismaService.character
+      .update({
+        where: {
+          id,
+          deleted_at: null,
+        },
+        data: { deleted_at: new Date() },
+      })
+      .catch((error) => {
+        handlePrismaNotFoundError(error);
+      });
+  }
 }

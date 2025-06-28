@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { CharacterService } from './character.service';
 import { CreateCharacterDto } from './dto/create-character.dto';
 import { GetCharacterDto } from './dto/get-character.dto';
@@ -44,6 +52,14 @@ export class CharacterController {
     return {
       message: 'Character updated successfully',
       data: result,
+    };
+  }
+
+  @Delete(':id')
+  async softDelete(@Param() { id }: GetCharacterDto) {
+    await this.characterService.softDelete(id);
+    return {
+      message: 'Character deleted successfully',
     };
   }
 }
