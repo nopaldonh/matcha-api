@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { CharacterService } from './character.service';
 import { CreateCharacterDto } from './dto/create-character.dto';
 
@@ -11,6 +11,15 @@ export class CharacterController {
     const result = await this.characterService.create(body);
     return {
       message: 'Character created successfully',
+      data: result,
+    };
+  }
+
+  @Get()
+  async findAll() {
+    const result = await this.characterService.findAll();
+    return {
+      message: 'Characters retrieved successfully',
       data: result,
     };
   }

@@ -14,4 +14,10 @@ export class CharacterService {
         handlePrismaUniqueError(error, 'name');
       });
   }
+
+  async findAll() {
+    return await this.prismaService.character.findMany({
+      where: { deleted_at: null },
+    });
+  }
 }
