@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { CharacterService } from './character.service';
 import { CreateCharacterDto } from './dto/create-character.dto';
 import { GetCharacterDto } from './dto/get-character.dto';
+import { UpdateCharacterDto } from './dto/update-character.dto';
 
 @Controller('characters')
 export class CharacterController {
@@ -30,6 +31,18 @@ export class CharacterController {
     const result = await this.characterService.findOne({ id });
     return {
       message: 'Character retrieved successfully',
+      data: result,
+    };
+  }
+
+  @Patch(':id')
+  async update(
+    @Param() { id }: GetCharacterDto,
+    @Body() body: UpdateCharacterDto,
+  ) {
+    const result = await this.characterService.update(id, body);
+    return {
+      message: 'Character updated successfully',
       data: result,
     };
   }
