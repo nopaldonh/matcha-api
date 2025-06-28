@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { CharacterService } from './character.service';
 import { CreateCharacterDto } from './dto/create-character.dto';
+import { GetCharacterDto } from './dto/get-character.dto';
 
 @Controller('characters')
 export class CharacterController {
@@ -20,6 +21,15 @@ export class CharacterController {
     const result = await this.characterService.findAll();
     return {
       message: 'Characters retrieved successfully',
+      data: result,
+    };
+  }
+
+  @Get(':id')
+  async findOne(@Param() { id }: GetCharacterDto) {
+    const result = await this.characterService.findOne({ id });
+    return {
+      message: 'Character retrieved successfully',
       data: result,
     };
   }

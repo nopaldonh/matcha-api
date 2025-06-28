@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
+import { Prisma } from '@prisma/client';
 import { handlePrismaUniqueError } from 'src/utils';
 import { CreateCharacterDto } from './dto/create-character.dto';
 
@@ -19,5 +20,18 @@ export class CharacterService {
     return await this.prismaService.character.findMany({
       where: { deleted_at: null },
     });
+  }
+
+  async findOne(where: Prisma.CharacterWhereUniqueInput) {
+    const character = await this.prismaService.character.findUnique({
+      where: {
+        ...where,
+        deleted_at: null,
+      },
+    });
+    if (!character) {
+      throw new NotFoundException('Character not found');
+    }
+    return character;
   }
 }
