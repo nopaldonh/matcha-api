@@ -16,11 +16,18 @@ export class HobbyService {
   }
 
   async findAll() {
-    return await this.prismaService.hobby.findMany();
+    return await this.prismaService.hobby.findMany({
+      where: { deleted_at: null },
+    });
   }
 
   async findOne(where: Prisma.HobbyWhereUniqueInput) {
-    const hobby = await this.prismaService.hobby.findUnique({ where });
+    const hobby = await this.prismaService.hobby.findUnique({
+      where: {
+        ...where,
+        deleted_at: null,
+      },
+    });
     if (!hobby) {
       throw new NotFoundException('Hobby not found');
     }
@@ -30,7 +37,10 @@ export class HobbyService {
   async update(id: number, data: UpdateHobbyDto) {
     return await this.prismaService.hobby
       .update({
-        where: { id },
+        where: {
+          id,
+          deleted_at: null,
+        },
         data,
       })
       .catch((error) => {
@@ -41,7 +51,10 @@ export class HobbyService {
   async softDelete(id: number) {
     return this.prismaService.hobby
       .update({
-        where: { id },
+        where: {
+          id,
+          deleted_at: null,
+        },
         data: { deleted_at: new Date() },
       })
       .catch((error) => {
