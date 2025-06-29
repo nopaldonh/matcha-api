@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
 import { Prisma } from '@prisma/client';
 import { handlePrismaNotFoundError, handlePrismaUniqueError } from 'src/utils';
@@ -22,16 +22,16 @@ export class HobbyService {
   }
 
   async findOne(where: Prisma.HobbyWhereUniqueInput) {
-    const hobby = await this.prismaService.hobby.findUnique({
-      where: {
-        ...where,
-        deleted_at: null,
-      },
-    });
-    if (!hobby) {
-      throw new NotFoundException('Hobby not found');
-    }
-    return hobby;
+    return await this.prismaService.hobby
+      .findUniqueOrThrow({
+        where: {
+          ...where,
+          deleted_at: null,
+        },
+      })
+      .catch((error) => {
+        handlePrismaNotFoundError(error);
+      });
   }
 
   async update(id: number, data: UpdateHobbyDto) {
